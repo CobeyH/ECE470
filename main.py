@@ -18,7 +18,6 @@ Emmanuel Ayodele V00849004
 
 # Basic Stuff
 import sys
-import torch # PyTorch 
 import math
 import numpy as np 
 import pandas as pd 
@@ -48,23 +47,39 @@ from sklearn import ensemble
 from sklearn.datasets import load_iris
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 
-# Data Management
-from torchvision import datasets  
-from pandas import read_csv
-from google.colab import files
-
-print('-'*40)
 print ('Python version: {}'.format(sys.version))
 
-"""ECE 470 Project
+showImage = input("\nDisplay result figures? (yes or no)\n")
 
-To upload files into the session, go the the files tab on the left side screen, click Upload to session storage, and upload the files to use
-"""
+# ------------------
+#  ECE 470 Project 
+# ------------------
 
-train = pd.read_csv('/content/train.csv')
+train = pd.read_csv('train.csv')
 
-"""Data cleaning"""
+# ------------------
+#  Data Cleaning
+# ------------------
+
+def print_results(trainLabel, trainPredictions, validationLabel, validationPredictions, validationData, model):
+  print('Results:')
+  print("- Training error:", round(mean_squared_error(trainLabel, trainPredictions, squared=False), 1))
+  print("- Validation error:", round(mean_squared_error(validationLabel, validationPredictions, squared=False), 1))
+  print("- Score:", round(model.score(validationData, validationLabel)*100,5), "%")
+
+def print_section_separator():
+    print('\n//////////////////////////////\n')
+
+def getAverageHousePrice(priceList1, priceList2):
+  priceSum = 0
+  for price in priceList1:
+    priceSum += price
+  for price in priceList2:
+    priceSum += price
+  return priceSum / (len(priceList1) + len(priceList2))
 
 # Get dummy data
 dummifiedDataframe = pd.get_dummies(train)
@@ -84,11 +99,16 @@ validationData = validationDf.drop([labelFeature], axis=1)
 plt.figure(figsize=(15, 13))
 sns.heatmap(train.corr())
 
-"""##Decision tree"""
+"""##Decision Tree"""
+
+print('\n#-----------------------------#')
+print("#        Decision Tree        #")
+print('#-----------------------------#')
 
 decisionTreeRegressor = tree.DecisionTreeRegressor(criterion="mse", random_state=0, max_depth=10)
 
 # train tree
+print("\nTraining Decision Tree: This may take a while.\n")
 decisionTree = decisionTreeRegressor.fit(trainData, trainRealSalePrice)
 
 # predict values
@@ -96,12 +116,10 @@ validationPredictions = decisionTree.predict(validationData)
 trainPredictions = decisionTree.predict(trainData)
 
 # Print Final Results
-print('Decision Tree Results:')
-print("Training error:", round(mean_squared_error(trainRealSalePrice, trainPredictions, squared=False), 1))
-print("Validation error:", round(mean_squared_error(validationRealSalePrice, validationPredictions, squared=False), 1))
-print("Maximum tree depth:", decisionTree.tree_.max_depth)
-print("Score:", round(decisionTree.score(validationData, validationRealSalePrice)*100,5), "%")
+print_results(trainRealSalePrice, trainPredictions, validationRealSalePrice, validationPredictions, validationData, decisionTree)
+print("- Maximum tree depth:", decisionTree.tree_.max_depth)
 
+# Max depth scores 
 scores = []
 
 # Code to determine which max depth is best
@@ -118,13 +136,14 @@ for i in range(1,16):
 
     scores.append(round(decisionTree.score(validationData, validationRealSalePrice)*100,5))
 
+print("\nScore for decision trees of depth 1 to 15")
 print(scores)
 
 Depths = np.arange(15) + 1
 
 plt.figure(figsize=(10, 10))
 
-rank = [int((max(scores)-elem)*len(df)*0.75/(max(scores)+1)) for elem in scores] 
+rank = [int((max(scores)-elem)*len(scores)*0.75/(max(scores)+1)) for elem in scores] 
 pal = sns.color_palette("Reds_r",len(scores))
 sns.set(style="whitegrid", color_codes=True)
 
@@ -150,136 +169,104 @@ plt.bar(X + 0.25, validationPredictions[:size], color = 'g', width = 0.25)
 # Add legend
 plt.legend(labels=['Real house price', 'Estimated sale price'], prop={'size': 16})
 
-plt.show()
+if showImage == 'yes':
+  plt.show()
+
+print_section_separator()
 
 """##Random Forest"""
 
-RandomForestRegressor = ensemble.RandomForestRegressor(n_estimators=500, max_depth=15)
+print('#-----------------------------#')
+print("#        Random Forest        #")
+print('#-----------------------------#')
 
-# train tree
-randomForest = RandomForestRegressor.fit(trainData, trainRealSalePrice)
+# RandomForestRegressor = ensemble.RandomForestRegressor(n_estimators=500, max_depth=15)
 
-# predict values
-trainForestPrediction = randomForest.predict(trainData)
-validationForestPrediction = randomForest.predict(validationData)
+# # train tree
+# print("\nTraining Random Forest: This should take around a minute.")
+# randomForest = RandomForestRegressor.fit(trainData, trainRealSalePrice)
 
-# Print Results
-print('RandomForest Results:')
-print("Training error:", round(mean_squared_error(trainRealSalePrice, trainForestPrediction, squared=False), 1))
-print("Validation error:", round(mean_squared_error(validationRealSalePrice, validationForestPrediction, squared=False), 1))
-print("Score:", round(randomForest.score(validationData, validationRealSalePrice),5)*100, "%")
+# # predict values
+# trainForestPrediction = randomForest.predict(trainData)
+# validationForestPrediction = randomForest.predict(validationData)
+
+# # Print Results
+# print_results(trainRealSalePrice, trainForestPrediction, validationRealSalePrice, validationForestPrediction, validationData, randomForest)
+
+# print_section_separator()
 
 """##Gradient Boosted Trees"""
 
-from sklearn.ensemble import GradientBoostingRegressor
+# print('#--------------------------------------#')
+# print("#        Gradient Boosted Trees        #")
+# print('#--------------------------------------#')
 
-GradientBoostingRegressor = GradientBoostingRegressor(n_estimators=1000, learning_rate=0.015, max_depth=6, random_state=0)
-# train tree
-gradientBoosted = GradientBoostingRegressor.fit(trainData, trainRealSalePrice)
+# GradientBoostingRegressor = GradientBoostingRegressor(n_estimators=1000, learning_rate=0.015, max_depth=6, random_state=0)
 
-# predict values
-trainGBTPrediction = gradientBoosted.predict(trainData)
-validationGBTPrediction = gradientBoosted.predict(validationData)
+# # train tree
+# print("\nTraining Gradient Boosting: This make take a while")
+# gradientBoosted = GradientBoostingRegressor.fit(trainData, trainRealSalePrice)
 
-# Print Results
-print("Training error:", round(mean_squared_error(trainRealSalePrice, trainGBTPrediction, squared=False), 1))
-print("Validation error:", round(mean_squared_error(validationRealSalePrice, validationGBTPrediction, squared=False), 1))
-print("Score:", round(gradientBoosted.score(validationData, validationRealSalePrice),5)*100, "%")
+# # predict values
+# trainGBTPrediction = gradientBoosted.predict(trainData)
+# validationGBTPrediction = gradientBoosted.predict(validationData)
+
+# # Print Results
+# print_results(trainRealSalePrice, trainGBTPrediction, validationRealSalePrice, validationGBTPrediction, validationData, gradientBoosted)
+
+# print_section_separator()
 
 """##K-Nearest Neighbour"""
 
-# K-Nearest Neighbour didn't make it into the final report due to it producing very poor results. However, the code is still here in case you are curious.
-from sklearn.neighbors import KNeighborsRegressor
-neigh = KNeighborsRegressor(n_neighbors=15)
-# Train
-nearestNeigh = neigh.fit(trainData, trainRealSalePrice)
+# print('#--------------------------------------#')
+# print("#         K-Nearest Neighbour          #")
+# print('#--------------------------------------#')
 
-# Predict values
-validationNearestNeigh = neigh.predict(validationData)
+# # K-Nearest Neighbour didn't make it into the final report due to it producing very poor results. However, the code is still here in case you are curious.
+# neigh = KNeighborsRegressor(n_neighbors=15)
 
-# Print Results
-print("Validation error:", round(mean_squared_error(validationRealSalePrice, validationNearestNeigh, squared=False), 1))
-print("Score:", round(nearestNeigh.score(validationData, validationRealSalePrice),5)*100, "%")
+# # Train
+# print("\nTraining K-Nearest Neighbour: This make take a while")
+# nearestNeigh = neigh.fit(trainData, trainRealSalePrice)
 
-"""##Neural Network
+# # Predict values
+# validationNearestNeigh = neigh.predict(validationData)
+# trainNearestNeigh = neigh.predict(trainData)
 
-"""
+# # Print Results
+# print_results(trainRealSalePrice, trainNearestNeigh, validationRealSalePrice, validationNearestNeigh, validationData, nearestNeigh)
 
-# Create data for neural network to use
-trainDf, validationDf = train_test_split(dummifiedDataframe, test_size=0.15, shuffle=True)
+# print_section_separator()
 
-# Convert dummified data to the correct format
-dummified_np = dummifiedDataframe.to_numpy()
-dummified_tf = tf.convert_to_tensor(dummified_np)
+# --------------------
+#    Neural Network
+# --------------------
 
-# Seperate label from dataframes
-trainRealSalePrice = trainDf[labelFeature]
-trainData = trainDf.drop([labelFeature], axis=1)
-validationRealSalePrice = validationDf[labelFeature]
-validationData = validationDf.drop([labelFeature], axis=1)
-
-# Convert training data to correct format
-trainData_tf = tf.convert_to_tensor(trainData.to_numpy())
-trainRealSalePrice_tf = tf.convert_to_tensor(trainRealSalePrice.to_numpy())
-
-# Create network structure
-kerasNetwork = Sequential()
-kerasNetwork.add(Dense(128, activation='sigmoid', input_shape=(305,)))
-kerasNetwork.add(Dense(1, activation='relu'))
-optim = SGD(learning_rate=0.001)
-# Put together network
-kerasNetwork.compile(optimizer=optim, loss='mean_squared_error', metrics=['accuracy'])
-
-# Train Network
-kerasNetwork.fit(trainData, trainRealSalePrice, epochs=5)
-
-# split into input (X) and output (Y) variables
-X = trainData
-Y = trainRealSalePrice
-# define base model
-def build_model():
-	# create model
-  model = Sequential()
-  model.add(Dense(305, input_dim=305, kernel_initializer='normal', activation='relu'))
-  model.add(Dense(305, kernel_initializer='normal', activation='relu'))
-  model.add(Dense(1, kernel_initializer='normal', activation='relu'))
-	# Compile model
-  model.compile(loss='mean_squared_error', optimizer='adam')
-  return model
-model1 = build_model()
-model1.fit(trainData, trainRealSalePrice, epochs=5000)
-# model2 = baseline_model()
-# model2.fit(trainData, trainRealSalePrice, epochs=500)
-
-results1 = model1.evaluate(validationData, validationRealSalePrice)
-# results2 = model2.evaluate(validationData, validationRealSalePrice)
-print(math.sqrt(results1))
-
-"""Fooling around with some tuning"""
+print('#------------------------------#')
+print("#        Neural Network        #")
+print('#------------------------------#')
 
 # Create model
-model = Sequential()
-model.add(Dense(305, input_dim=305, kernel_initializer='normal', activation='relu'))
-model.add(Dense(100, kernel_initializer='normal', activation='relu'))
-model.add(Dense(10, kernel_initializer='normal', activation='relu'))
-model.add(Dense(1, kernel_initializer='normal', activation='relu'))
-# Compile model
-model.compile(loss='mean_squared_error', optimizer='adam')
-# Fit model
-model.fit(trainData, trainRealSalePrice, epochs=50)
-# Results
-results1 = model.evaluate(validationData, validationRealSalePrice)
-print('3 layer', math.sqrt(results1))
+neuralNetwork = Sequential()
+neuralNetwork.add(Dense(305, input_dim=305, kernel_initializer='normal', activation='relu'))
+neuralNetwork.add(Dense(100, kernel_initializer='normal', activation='relu'))
+neuralNetwork.add(Dense(10, kernel_initializer='normal', activation='relu'))
+neuralNetwork.add(Dense(1, kernel_initializer='normal', activation='relu'))
 
-# # Create model
-# model = Sequential()
-# model.add(Dense(305, input_dim=305, kernel_initializer='normal', activation='relu'))
-# model.add(Dense(10, kernel_initializer='normal', activation='relu'))
-# model.add(Dense(1, kernel_initializer='normal', activation='relu'))
-# # Compile model
-# model.compile(loss='mean_squared_error', optimizer='adam')
-# # Fit model
-# model.fit(trainData, trainRealSalePrice, epochs=50)
-# # Results
-# results1 = model.evaluate(validationData, validationRealSalePrice)
-# print('2 layer', math.sqrt(results1))
+# Compile model
+neuralNetwork.compile(loss='mean_squared_error', optimizer='adam')
+
+# Fit model
+print("\nTraining Neural Network: This may take some time\n")
+neuralNetwork.fit(trainData, trainRealSalePrice, epochs=2000, verbose=1)
+
+# Predict values
+validationResults = neuralNetwork.evaluate(validationData, validationRealSalePrice)
+trainResults = neuralNetwork.evaluate(trainData, trainRealSalePrice)
+
+# # Print Results
+print("Results")
+print('- Training error:', math.sqrt(trainResults))
+print('- Validation error:', math.sqrt(validationResults))
+print('- Score:', (round(1 - (math.sqrt(validationResults)/getAverageHousePrice(trainRealSalePrice, validationRealSalePrice)), 5)*100), '%')
+print()
